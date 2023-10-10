@@ -1,5 +1,5 @@
 resource "aws_db_instance" "db" {
-  count                  = (var.cluster_type == "etcd" || var.external_db == "" || var.external_db == "NULL" ? 0 : (var.external_db != "" && var.external_db != "aurora-mysql" ? 1 : 0))
+  count                  = (var.datastore_type == "etcd" || var.external_db == "" || var.external_db == "NULL" ? 0 : (var.external_db != "" && var.external_db != "aurora-mysql" ? 1 : 0))
   identifier             = "${var.resource_name}${local.random_string}-db"
   storage_type           = "gp2"
   allocated_storage      = 20
@@ -18,7 +18,7 @@ resource "aws_db_instance" "db" {
 }
 
 resource "aws_rds_cluster" "db" {
-  count                  = (var.external_db == "aurora-mysql" && var.cluster_type == "" ? 1 : 0)
+  count                  = (var.external_db == "aurora-mysql" && var.datastore_type == "" ? 1 : 0)
   cluster_identifier     = "${var.resource_name}${local.random_string}-db"
   engine                 = var.external_db
   engine_version         = var.external_db_version
@@ -34,7 +34,7 @@ resource "aws_rds_cluster" "db" {
 }
 
 resource "aws_rds_cluster_instance" "db" {
- count                   = (var.external_db == "aurora-mysql" && var.cluster_type == "" ? 1 : 0)
+ count                   = (var.external_db == "aurora-mysql" && var.datastore_type == "" ? 1 : 0)
  cluster_identifier      = aws_rds_cluster.db[0].id
  identifier              = "${var.resource_name}${local.random_string}-instance1"
  instance_class          = var.instance_class
@@ -52,7 +52,7 @@ resource "aws_instance" "master" {
     private_key          = file(var.access_key)
   }
   root_block_device {
-    volume_size          = "20"
+    volume_size          = var.volume_size
     volume_type          = "standard"
   }
   subnet_id              = var.subnets
@@ -89,11 +89,15 @@ resource "aws_instance" "master" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/k3s_master.sh",
-      "sudo /tmp/k3s_master.sh ${var.node_os} ${var.create_lb ? aws_route53_record.aws_route53[0].fqdn : "fake.fqdn.value"} ${var.install_mode} ${var.k3s_version} ${var.cluster_type} ${self.public_ip} \"${data.template_file.test.rendered}\" \"${var.server_flags}\"  ${var.username} ${var.password} ${var.k3s_channel}",
+      "sudo /tmp/k3s_master.sh ${var.node_os} ${var.create_lb ? aws_route53_record.aws_route53[0].fqdn : "fake.fqdn.value"} ${var.install_mode} ${var.k3s_version} ${var.datastore_type} ${self.public_ip} \"${data.template_file.test.rendered}\" \"${var.server_flags}\"  ${var.username} ${var.password} ${var.k3s_channel}",
     ]
   }
   provisioner "local-exec" {
     command = "echo ${aws_instance.master.public_ip} >/tmp/${var.resource_name}_master_ip"
+  }
+
+  provisioner "local-exec" {
+    command = "echo ${aws_instance.master.public_ip} >/tmp/${var.resource_name}_master_ip_prev"
   }
   provisioner "local-exec" {
     command = "scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${var.access_key} ${var.aws_user}@${aws_instance.master.public_ip}:/tmp/nodetoken /tmp/${var.resource_name}_nodetoken"
@@ -110,12 +114,12 @@ resource "aws_instance" "master" {
 }
 
 data "template_file" "test" {
-  template   = (var.cluster_type == "etcd" ? "NULL": (var.external_db == "postgres" ? "postgres://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@${aws_db_instance.db[0].endpoint}/${aws_db_instance.db[0].db_name}" : (var.external_db == "aurora-mysql" ? "mysql://${aws_rds_cluster.db[0].master_username}:${aws_rds_cluster.db[0].master_password}@tcp(${aws_rds_cluster.db[0].endpoint})/${aws_rds_cluster.db[0].database_name}" : "mysql://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@tcp(${aws_db_instance.db[0].endpoint})/${aws_db_instance.db[0].db_name}")))
+  template   = (var.datastore_type == "etcd" ? "NULL": (var.external_db == "postgres" ? "postgres://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@${aws_db_instance.db[0].endpoint}/${aws_db_instance.db[0].db_name}" : (var.external_db == "aurora-mysql" ? "mysql://${aws_rds_cluster.db[0].master_username}:${aws_rds_cluster.db[0].master_password}@tcp(${aws_rds_cluster.db[0].endpoint})/${aws_rds_cluster.db[0].database_name}" : "mysql://${aws_db_instance.db[0].username}:${aws_db_instance.db[0].password}@tcp(${aws_db_instance.db[0].endpoint})/${aws_db_instance.db[0].db_name}")))
   depends_on = [data.template_file.test_status]
 }
 
 data "template_file" "test_status" {
-  template = (var.cluster_type == "etcd" ? "NULL": ((var.external_db == "postgres" ? aws_db_instance.db[0].endpoint : (var.external_db == "aurora-mysql" ? aws_rds_cluster_instance.db[0].endpoint : aws_db_instance.db[0].endpoint))))
+  template = (var.datastore_type == "etcd" ? "NULL": ((var.external_db == "postgres" ? aws_db_instance.db[0].endpoint : (var.external_db == "aurora-mysql" ? aws_rds_cluster_instance.db[0].endpoint : aws_db_instance.db[0].endpoint))))
 }
 data "local_file" "token" {
   filename   = "/tmp/${var.resource_name}_nodetoken"
@@ -147,7 +151,7 @@ resource "aws_instance" "master2-ha" {
     private_key          = file(var.access_key)
   }
   root_block_device {
-    volume_size          = "20"
+    volume_size          = var.volume_size
     volume_type          = "standard"
   }
   subnet_id              = var.subnets
@@ -185,7 +189,7 @@ resource "aws_instance" "master2-ha" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/join_k3s_master.sh",
-      "sudo /tmp/join_k3s_master.sh ${var.node_os} ${var.create_lb ? aws_route53_record.aws_route53[0].fqdn : aws_instance.master.public_ip} ${var.install_mode} ${var.k3s_version} ${var.cluster_type} ${self.public_ip} ${aws_instance.master.public_ip} ${local.node_token} \"${data.template_file.test.rendered}\" \"${var.server_flags}\" ${var.username} ${var.password} ${var.k3s_channel} ",
+      "sudo /tmp/join_k3s_master.sh ${var.node_os} ${var.create_lb ? aws_route53_record.aws_route53[0].fqdn : aws_instance.master.public_ip} ${var.install_mode} ${var.k3s_version} ${var.datastore_type} ${self.public_ip} ${aws_instance.master.public_ip} ${local.node_token} \"${data.template_file.test.rendered}\" \"${var.server_flags}\" ${var.username} ${var.password} ${var.k3s_channel} ",
     ]
   }
 }
@@ -337,4 +341,92 @@ resource "aws_route53_record" "aws_route53" {
 data "aws_route53_zone" "selected" {
   name               = var.qa_space
   private_zone       = false
+}
+
+
+locals {
+        master_with_eip = { for i, v in aws_instance.master2-ha : tonumber(i)  => v.id if var.create_eip}      
+}
+
+resource "aws_eip" "master_with_eip" { 
+        count = var.create_eip ? 1 : 0
+        //vpc = true
+        tags = {
+           Name ="${var.resource_name}-server"
+        }     
+}
+
+resource "aws_eip" "master_with_eip2" {
+        for_each = local.master_with_eip
+        //vpc = true
+          tags = {
+                  Name ="${var.resource_name}-servers-${each.key}"
+        }
+      depends_on = [aws_eip.master_with_eip ]
+}
+
+resource "aws_eip_association" "master_eip_association" { 
+        count = var.create_eip ? 1 : 0
+        instance_id = aws_instance.master.id
+        allocation_id = aws_eip.master_with_eip[0].id
+        depends_on = [aws_eip.master_with_eip]
+}
+
+resource "aws_eip_association" "master2_eip_association" {
+        for_each = local.master_with_eip
+        instance_id = aws_instance.master2-ha[each.key].id
+        allocation_id = aws_eip.master_with_eip2[each.key].id
+        depends_on = [aws_instance.master]
+}
+
+
+data "local_file" "master_ip" {
+  depends_on = [aws_instance.master]
+  filename = "/tmp/${var.resource_name}_master_ip"
+}
+
+locals {
+  master_ip = trimspace("${data.local_file.master_ip.content}")
+}
+
+resource "null_resource" "master_eip" {
+  count = var.create_eip ? 1 : 0 
+  connection {
+    type        = "ssh"
+    user        = var.aws_user
+    host        = aws_eip.master_with_eip[0].public_ip
+    private_key = file(var.access_key)
+  }
+   
+  provisioner "remote-exec" {
+    inline = [
+      "sudo sed -i s/${local.master_ip}/${aws_eip.master_with_eip[0].public_ip}/g /etc/rancher/k3s/config.yaml",
+      "sudo systemctl restart k3s"
+    ]
+  }
+  
+   provisioner "local-exec" {
+    command = "echo ${aws_eip.master_with_eip[0].public_ip} > /tmp/${var.resource_name}_master_ip"
+  } 
+}
+
+resource "null_resource" "master2_eip" {
+  for_each = local.master_with_eip
+  connection {
+    type        = "ssh"
+    user        = var.aws_user
+    host        = tostring(aws_eip.master_with_eip2[each.key].public_ip)
+    private_key = file(var.access_key)
+  }
+
+  provisioner "remote-exec" { 
+    inline = [
+      "sudo sed -i s/${local.master_ip}/${aws_eip.master_with_eip[0].public_ip}/g /etc/rancher/k3s/config.yaml",
+      "sudo sed -i s/-ip:.*/\"-ip: ${aws_eip.master_with_eip2[each.key].public_ip}\"/g /etc/rancher/k3s/config.yaml",
+      "sudo systemctl restart k3s"
+    ]
+  }
+
+ depends_on = [null_resource.master_eip, 
+                 aws_eip_association.master2_eip_association]
 }

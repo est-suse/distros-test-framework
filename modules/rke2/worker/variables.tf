@@ -1,5 +1,6 @@
 variable "access_key" {}
 variable "key_name" {}
+variable "create_eip" {}
 variable "availability_zone" {}
 variable "aws_ami" {}
 variable "aws_user" {}

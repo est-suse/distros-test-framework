@@ -6,6 +6,8 @@ variable "vpc_id" {}
 variable "subnets" {}
 variable "availability_zone" {}
 variable "sg_id" {}
+variable "create_eip" {}
+variable "volume_size" {}
 variable "qa_space" {}
 variable "ec2_instance_class" {}
 variable "resource_name" {}
@@ -20,7 +22,7 @@ variable "k3s_version" {}
 variable "no_of_server_nodes" {}
 variable "server_flags" {}
 
-variable "cluster_type" {}
+variable "datastore_type" {}
 variable "node_os" {}
 variable "db_username" {}
 variable "db_password" {}

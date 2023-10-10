@@ -12,10 +12,12 @@ module "master" {
    qa_space=var.qa_space
    ec2_instance_class=var.ec2_instance_class
    access_key=var.access_key
-   cluster_type=var.cluster_type
+   datastore_type=var.datastore_type
    server_flags=var.server_flags
    availability_zone=var.availability_zone
    sg_id=var.sg_id
+   create_eip=var.create_eip
+   volume_size=var.volume_size
    resource_name=var.resource_name
    node_os=var.node_os
    username=var.username
@@ -48,9 +50,11 @@ module "worker" {
    worker_flags=var.worker_flags
    availability_zone=var.availability_zone
    sg_id=var.sg_id
+   volume_size=var.volume_size
    resource_name=var.resource_name
    node_os=var.node_os
    username=var.username
    password=var.password
    k3s_channel = var.k3s_channel
+   create_eip=var.create_eip
 }

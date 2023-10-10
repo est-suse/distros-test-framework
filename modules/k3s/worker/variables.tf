@@ -7,6 +7,7 @@ variable "aws_ami" {}
 variable "aws_user" {}
 variable "vpc_id" {}
 variable "subnets" {}
+variable "create_eip" {}
 variable "resource_name" {}
 variable "access_key" {}
 variable "k3s_version" {}
@@ -15,6 +16,7 @@ variable "worker_flags" {}
 variable "ec2_instance_class" {}
 variable "availability_zone" {}
 variable "sg_id" {}
+variable  "volume_size" {}
 variable "username" {}
 variable "password" {}
 variable "node_os" {}

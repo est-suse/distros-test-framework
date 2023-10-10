@@ -8,6 +8,7 @@ variable "subnets" {}
 variable "qa_space" {}
 variable "resource_name" {}
 variable "key_name" {}
+variable "create_eip" {}
 variable "external_db" {}
 variable "external_db_version" {}
 variable "instance_class" {}
@@ -21,7 +22,8 @@ variable "server_flags" {}
 variable "worker_flags" {}
 variable "availability_zone" {}
 variable "sg_id" {}
-variable "cluster_type" {}
+variable "volume_size" {}
+variable "datastore_type" {}
 variable "node_os" {}
 variable "db_username" {}
 variable "db_password" {}

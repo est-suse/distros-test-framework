@@ -3,6 +3,7 @@ variable "key_name" {}
 variable "availability_zone" {}
 variable "aws_ami" {}
 variable "aws_user" {}
+variable "create_eip" {}
 variable "ec2_instance_class" {}
 variable "volume_size" {}
 variable "iam_role" {}

@@ -6,6 +6,7 @@ variable "username" {
 variable "password" {
   default = "password"
 }
+variable "create_eip" {}
 variable "no_of_server_nodes" {}
 variable "no_of_worker_nodes" {}
 variable "create_lb" {
@@ -29,6 +30,11 @@ variable "resource_name" {}
 variable "sg_id" {}
 variable "subnets" {}
 variable "vpc_id" {}
+
+# Windows variables
+variable "no_of_windows_worker_nodes" {}
+variable "windows_aws_ami" {}
+variable "windows_ec2_instance_class" {}
 
 # RKE2 variables
 variable "rke2_version" {}

@@ -113,7 +113,7 @@ wait_nodes() {
   export PATH="$PATH:/usr/local/bin"
   timeElapsed=0
 
-  while (( timeElapsed < 300 )); do
+  while (( timeElapsed < 600 )); do
     if kubectl get nodes >/dev/null 2>&1; then
       return
     fi
@@ -127,7 +127,7 @@ wait_nodes() {
 
 wait_ready_nodes() {
   timeElapsed=0
-  while [[ $timeElapsed -lt 600 ]]
+  while [[ $timeElapsed -lt 1200 ]]
   do
     notready=false
     if [[ ! -f /var/lib/rancher/rke2/server/node-token ]] || [[ ! -f /etc/rancher/rke2/rke2.yaml ]]
